@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Study Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e9eef6;--card:#fff;--ink:#14213d;--mute:#5b6b86;--line:#cfd8e6;--acc:#2f5bff;--acc-ink:#fff;--ok:#1e8e5a;--bad:#c93c3c;--r:14px}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1626;--card:#18233b;--ink:#e8eefb;--mute:#9aa9c5;--line:#2b3a5a;--acc:#6f8cff;--acc-ink:#0f1626;--ok:#46c28a;--bad:#ff7a7a}}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:18px/1.55 "Atkinson Hyperlegible",system-ui,sans-serif;min-height:100vh}
+h1,h2{font-family:"Bricolage Grotesque",system-ui,sans-serif;line-height:1.1;margin:0}
+h1{font-size:clamp(2rem,6vw,3rem);font-weight:800;letter-spacing:-.02em}
+h2{font-size:1.7rem;font-weight:800}
+main{max-width:720px;margin:0 auto;padding:28px 18px 60px}
+p{margin:.4em 0}
+.sub{color:var(--mute)}
+textarea,input[type=text]{width:100%;font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--line);border-radius:var(--r);padding:14px}
+textarea{min-height:240px;resize:vertical}
+textarea:focus,input:focus,button:focus-visible,.fc:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.btn{font:inherit;font-weight:700;border:2px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:10px 20px;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--acc-ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0}
+.grow{flex:1}
+.tabs{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0}
+.tab{font:inherit;font-weight:700;padding:9px 16px;border-radius:999px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer}
+.tab[aria-selected=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.stat{display:flex;justify-content:space-between;color:var(--mute);margin-bottom:10px}
+.fc{perspective:1200px;height:280px;cursor:pointer;margin:6px 0 18px}
+.fc .in{position:relative;width:100%;height:100%;transition:transform .45s;transform-style:preserve-3d}
+.fc.flip .in{transform:rotateY(180deg)}
+.face{position:absolute;inset:0;backface-visibility:hidden;background:var(--card);border:2px solid var(--line);border-radius:20px;display:flex;align-items:center;justify-content:center;text-align:center;padding:26px;font-size:1.3rem;overflow:auto}
+.front{font-family:"Bricolage Grotesque",sans-serif;font-weight:800;font-size:1.9rem}
+.back{transform:rotateY(180deg);border-color:var(--acc)}
+.q{font-size:1.35rem;font-weight:700;margin:6px 0 18px}
+.opt{display:block;width:100%;text-align:left;font:inherit;background:var(--card);color:var(--ink);border:2px solid var(--line);border-radius:var(--r);padding:13px 16px;margin-bottom:10px;cursor:pointer}
+.opt:hover:not(:disabled){border-color:var(--acc)}
+.opt.ok{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 16%,var(--card))}
+.opt.no{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 16%,var(--card))}
+.msg{font-weight:700;margin:10px 0}
+.msg.ok{color:var(--ok)}.msg.no{color:var(--bad)}
+.done{background:var(--card);border:2px solid var(--line);border-radius:20px;padding:30px;text-align:center}
+.big{font:800 3rem "Bricolage Grotesque",sans-serif;margin:8px 0}
+.timer{font:800 1.4rem "Bricolage Grotesque",sans-serif;color:var(--acc)}
+.fmt{background:var(--card);border:2px dashed var(--line);border-radius:var(--r);padding:12px 16px;margin:14px 0;font-size:.95rem}
+@media(prefers-reduced-motion:reduce){.fc .in{transition:none}}
+</style>
+</head>
+<body>
+<main id="app"></main>
+<script>
+const app=document.getElementById('app');
+const $=s=>document.querySelector(s);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const shuffle=a=>{a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const norm=s=>s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+const SAMPLE="Photosynthesis: The process plants use to turn sunlight, water and carbon dioxide into glucose and oxygen\nMitochondria: The part of a cell that releases energy from food\nOsmosis: Movement of water across a membrane from low to high solute concentration\nDNA: The molecule that carries genetic instructions in living things\nEcosystem: A community of living things interacting with their environment";
+let cards=[],mode='flash',timer=null;
+
+function parse(t){
+  return t.split(/\r?\n/).map(l=>l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/,'').trim()).map(l=>{
+    const m=l.match(/^(.{1,80}?)\s*(?::|=|\t|\s[-–—]\s)\s*(.+)$/);
+    return m?{t:m[1].trim(),d:m[2].trim()}:null;
+  }).filter(Boolean);
+}
+function stopT(){if(timer){clearInterval(timer);timer=null}}
+function stage(h){$('#stage').innerHTML=h}
+
+function setup(){
+  stopT();
+  let saved='';try{saved=localStorage.getItem('sh-notes')||''}catch(e){}
+  app.innerHTML=`<h1>Study Hub</h1>
+  <p class="sub">Paste your notes. Get flashcards, quizzes and typing drills in seconds.</p>
+  <div class="fmt">Write one card per line as <b>Term: definition</b>. A dash or equals sign also works.</div>
+  <label for="notes" class="sub">Your notes</label>
+  <textarea id="notes" placeholder="Osmosis: Movement of water across a membrane">${esc(saved)}</textarea>
+  <div class="row">
+    <span id="count" class="sub grow"></span>
+    <button class="btn" id="sample">Try sample notes</button>
+    <label class="btn" for="file" style="margin:0">Upload .txt or .md</label>
+    <input id="file" type="file" accept=".txt,.md,.csv,text/plain" hidden>
+    <button class="btn pri" id="go">Start studying</button>
+  </div>`;
+  const ta=$('#notes');
+  const upd=()=>{const n=parse(ta.value).length;$('#count').textContent=n?`${n} card${n===1?'':'s'} found`:'No cards found yet';$('#go').disabled=n<2;try{localStorage.setItem('sh-notes',ta.value)}catch(e){}};
+  ta.oninput=upd;
+  $('#sample').onclick=()=>{ta.value=SAMPLE;upd()};
+  $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{ta.value=(ta.value?ta.value+'\n':'')+r.result;upd()};r.readAsText(f)};
+  $('#go').onclick=()=>{cards=parse(ta.value);study()};
+  upd();
+}
+
+const MODES=[['flash','Flashcards'],['mcq','Multiple choice'],['speed','Speed round'],['fill','Fill in the blank']];
+function study(){
+  app.innerHTML=`<div class="row"><h2 class="grow">Study Hub</h2><button class="btn" id="edit">Edit notes</button></div>
+  <div class="tabs" role="tablist">${MODES.map(([k,n])=>`<button class="tab" role="tab" data-m="${k}" aria-selected="${k===mode}">${n}</button>`).join('')}</div>
+  <div id="stage"></div>`;
+  $('#edit').onclick=setup;
+  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{mode=b.dataset.m;document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===b));run()});
+  run();
+}
+function run(){stopT();({flash,mcq:()=>quiz(false),speed:()=>quiz(true),fill})[mode]()}
+const again=(t,s)=>`<div class="done"><h2>${t}</h2><div class="big">${s}</div><button class="btn pri" onclick="run()">Go again</button></div>`;
+
+function flash(){
+  let deck=shuffle(cards),missed=new Set(),flipped=false;
+  const draw=()=>{
+    if(!deck.length)return stage(again('Deck complete',`${cards.length-missed.size} of ${cards.length} first try`));
+    const c=deck[0];flipped=false;
+    stage(`<div class="stat"><span>${deck.length} left</span><span>Click the card to flip</span></div>
+    <div class="fc" id="fc" tabindex="0" role="button" aria-label="Flip card"><div class="in"><div class="face front">${esc(c.t)}</div><div class="face back">${esc(c.d)}</div></div></div>
+    <div class="row"><button class="btn grow" id="again">Study again</button><button class="btn pri grow" id="got">Got it</button></div>`);
+    const fc=$('#fc'),flip=()=>fc.classList.toggle('flip');
+    fc.onclick=flip;fc.onkeydown=e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}};
+    $('#got').onclick=()=>{deck.shift();draw()};
+    $('#again').onclick=()=>{missed.add(c);deck.push(deck.shift());draw()};
+  };
+  draw();
+}
+
+function quiz(timed){
+  let order=shuffle(cards),i=0,score=0,total=0,left=60,locked=false,over=false;
+  const end=()=>{over=true;stopT();stage(again(timed?"Time's up":'Quiz complete',`${score} / ${total}`))};
+  if(timed)timer=setInterval(()=>{left--;const t=$('#t');if(t)t.textContent=left;if(left<=0)end()},1000);
+  const q=()=>{
+    if(over)return;
+    if(i>=order.length){if(timed){order=shuffle(cards);i=0}else return end()}
+    const c=order[i];locked=false;
+    const opts=shuffle([c,...shuffle(cards.filter(x=>x!==c&&x.d!==c.d)).slice(0,3)]);
+    stage(`<div class="stat">${timed?`<span class="timer"><span id="t">${left}</span>s</span>`:`<span>Question ${i+1} of ${order.length}</span>`}<span>Score ${score}</span></div>
+    <p class="q">What matches “${esc(c.t)}”?</p>
+    ${opts.map(o=>`<button class="opt">${esc(o.d)}</button>`).join('')}<div id="after"></div>`);
+    document.querySelectorAll('.opt').forEach((b,k)=>b.onclick=()=>{
+      if(locked)return;locked=true;total++;const ok=opts[k]===c;if(ok)score++;
+      b.classList.add(ok?'ok':'no');
+      document.querySelectorAll('.opt').forEach((x,n)=>{x.disabled=true;if(opts[n]===c)x.classList.add('ok')});
+      if(timed)setTimeout(()=>{i++;q()},ok?400:1000);
+      else{$('#after').innerHTML=`<div class="row"><button class="btn pri" id="next">${i+1>=order.length?'See score':'Next'}</button></div>`;$('#next').onclick=()=>{i++;q()};$('#next').focus()}
+    });
+  };
+  q();
+}
+
+function fill(){
+  let order=shuffle(cards),i=0,score=0;
+  const q=()=>{
+    if(i>=order.length)return stage(again('Drill complete',`${score} / ${order.length}`));
+    const c=order[i];
+    stage(`<div class="stat"><span>Card ${i+1} of ${order.length}</span><span>Score ${score}</span></div>
+    <p class="q">${esc(c.d)}</p>
+    <label for="ans" class="sub">Type the term</label>
+    <input type="text" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div id="res"></div>
+    <div class="row"><button class="btn" id="hint">Show hint</button><span class="grow"></span><button class="btn pri" id="check">Check answer</button></div>`);
+    const a=$('#ans');a.focus();let done=false;
+    $('#hint').onclick=()=>{$('#res').innerHTML=`<p class="sub">Starts with “${esc(c.t[0])}” · ${c.t.length} characters</p>`;a.focus()};
+    const check=()=>{
+      if(done){i++;return q()}
+      done=true;const ok=norm(a.value)===norm(c.t);if(ok)score++;
+      a.disabled=true;$('#hint').disabled=true;
+      $('#res').innerHTML=ok?`<p class="msg ok">Correct</p>`:`<p class="msg no">Not quite. The answer is ${esc(c.t)}</p>`;
+      const b=$('#check');b.textContent=i+1>=order.length?'See score':'Next';b.focus();
+    };
+    $('#check').onclick=check;
+    a.onkeydown=e=>{if(e.key==='Enter')check()};
+  };
+  q();
+}
+setup();
+</script>
+</body>
+</html>
